@@ -6,7 +6,7 @@
   global weighted Pearson correlation; inference on 1 CPU core in 60 minutes for 39.4 million rows.
 
 This is a write-up, not a code release. Snippets are simplified sketches of the parts I think are useful; they show the
-idea, not the exact implementation. Section 11 compares the result with a stronger public write-up and lists what I missed.
+idea, not the exact implementation.
 
 ## Contents
 
@@ -21,8 +21,7 @@ idea, not the exact implementation. Section 11 compares the result with a strong
 8. [The last real gain: an input projection](#8-the-last-real-gain-an-input-projection)
 9. [What did not work](#9-what-did-not-work)
 10. [Final selection and where the score came from](#10-final-selection-and-where-the-score-came-from)
-11. [After the deadline: what I missed](#11-after-the-deadline-what-i-missed)
-12. [References](#references)
+11. [References](#references)
 
 ---
 
@@ -161,7 +160,7 @@ def paired_boot(Sa, Sb, n=1000, rng=np.random.default_rng(0)):   # Sa, Sb: [n_se
 - **Noise floors.** Seed noise about 0.0005-0.001 on `valid_scored`; two independent copies of the same 4-member ensemble
   differ by about 0.0003 on public. I stopped reading public differences under ~0.0005 as signal.
 - **The gap.** Public ≈ `valid_scored` − 0.039 for my models, against 0.026-0.029 that other participants reported. Holdout
-  gains transferred to the board at roughly a quarter or less. Section 11 has a likely reason.
+  gains transferred to the board at roughly a quarter or less.
 
 ## 4. The base model
 
@@ -376,34 +375,6 @@ validation-to-public gap.
 From 0.6523 (first model on all data) the work on the recipe, the ensembles and the kernel added +0.0054. Past 31 October,
 everything except the projection was inside the noise.
 
-## 11. After the deadline: what I missed
-
-The write-up by [@ayushcoder894 and team](https://github.com/ayushcoder894/wunder-alfa-connectome-writeup) [11] (public 0.66938)
-started from a similar GRU (0.6479 vs my 0.6492) and gained +0.0215 where I gained +0.0085. By their attribution, fine-tuning
-on the validation period gave about 45 % of it and better labels about 33 %. Comparing their notes with mine:
-
-1. **A separate fine-tune on validation.** I put scored-row weights inside joint training, which gave nothing. They fine-tune
-   a converged parent on the scored rows of validation (warm-up + cosine LR, unscored rows at weight 0.1, per market), then
-   average several seeds of the same fine-tune in weight space. The fine-tune alone was worth +0.007 public in their second
-   pipeline. I had planned a
-   scored-only fine-tune on 27 October and never built the `init_from` path for it.
-2. **Distillation from strong teachers.** My self-distillation used one in-sample teacher of the same size, and it failed.
-   Their teachers are stronger than the student (a 9-model ensemble, a 16-33M LSTM, and a teacher that sees the next 20-50
-   rows of the price path), and their labels are cross-fitted so no sequence is labelled by a model that saw its targets.
-   Soft label `0.2 · y + 0.8 · teacher`.
-3. **Validation folds by session.** Sequences are consecutive blocks of longer sessions. My random 600-sequence holdout
-   probably put blocks of one session on both sides, which would explain why holdout gains transferred at a quarter or less and
-   why my validation-to-public gap (0.039) was larger than the 0.026-0.029 other participants reported.
-4. **Decoding the data.** They identified four tick sizes from the warm-up rows (99.95 %), with one large-tick market at a
-   score of 0.44 carrying about half of the metric weight; my hard cluster at 0.405 is probably the same market (not
-   verified). They also decoded an exact target structure and used it for a bid/ask mirror augmentation.
-5. **Smaller architecture items** that I either did not try or tried in a weaker form: LSTM with projection, piecewise-linear
-   input encoding, a causal per-sequence normalisation with a learned mix (mine was fixed and lost), two streams for the two
-   instruments, and free-sign blend weights per market.
-
-The lesson for the next one: build the fine-tune on the latest labelled period and out-of-fold teacher labels early, use
-group-level folds from the start, and spend time decoding the data before searching over models.
-
 ## References
 
 1. K. Cho et al. Learning phrase representations using RNN encoder-decoder for statistical machine translation. *EMNLP*, 2014.
@@ -416,7 +387,6 @@ group-level folds from the start, and spend time decoding the data before search
 8. R. Cont, A. Kukanov, S. Stoikov. The price impact of order book events. *Journal of Financial Econometrics*, 2014. arXiv:1011.6402.
 9. K. Xu, M. D. Gould, S. D. Howison. 2019. arXiv:1907.06230 (multi-level order-flow imbalance).
 10. G. Hinton, O. Vinyals, J. Dean. Distilling the knowledge in a neural network. arXiv:1503.02531, 2015.
-11. ayushcoder894, jy447, Japjotcpp. Wunder Fund Alfa Connectome: our solution. GitHub, 2026.
 
 ---
 
